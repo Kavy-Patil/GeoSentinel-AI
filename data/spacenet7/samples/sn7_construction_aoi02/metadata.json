@@ -1,0 +1,12 @@
+{
+  "dataset": "SpaceNet 7 Multi-Temporal Urban Development Challenge",
+  "sample_id": "sn7_construction_aoi02",
+  "sensor": "PlanetScope Dove (4-band RGB-NIR, 4m GSD)",
+  "crs": "EPSG:32618",
+  "acquisition_dates": {
+    "before": "2018-05-15T00:00:00Z",
+    "after": "2019-11-20T00:00:00Z"
+  },
+  "task": "Building footprint construction & urban growth",
+  "license": "CC-BY-SA-4.0"
+}

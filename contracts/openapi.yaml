@@ -1,0 +1,399 @@
+openapi: 3.0.3
+info:
+  title: GeoSentinel AI - Satellite Change Detection API
+  version: 3.0.0
+  description: |
+    API contract for GeoSentinel AI: Bi-Temporal Satellite Change Detection for Rapid Urban Encroachment & Disaster Impact.
+    Stage 3 implements the AI & Computer Vision Change Detection Engine, spectral differencing, morphological false-positive suppression, and real-time job execution telemetry.
+paths:
+  /api/health:
+    get:
+      summary: Health check and engine status
+      description: Returns health status, current stage (3), and operational detection algorithms.
+      operationId: getHealth
+      responses:
+        '200':
+          description: Service is operational
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+  /api/methods:
+    get:
+      summary: List available detection methods
+      description: Returns catalog of registered classical and deep learning detection models with live availability status.
+      operationId: listMethods
+      responses:
+        '200':
+          description: List of detection methods
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  methods:
+                    type: array
+                    items:
+                      type: object
+
+  /api/datasets:
+    get:
+      summary: List available satellite datasets
+      description: Returns catalog of registered benchmark datasets and upload channels.
+      operationId: listDatasets
+      responses:
+        '200':
+          description: List of datasets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetListResponse'
+
+  /api/datasets/{dataset_id}/samples:
+    get:
+      summary: List samples for a dataset
+      description: Returns available sample pairs for a specific benchmark dataset (e.g. LEVIR-CD, OSCD).
+      operationId: listDatasetSamples
+      parameters:
+        - name: dataset_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of dataset samples
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetSamplesResponse'
+        '404':
+          description: Dataset not found
+
+  /api/datasets/{dataset_id}/samples/{sample_id}:
+    get:
+      summary: Load and validate a dataset sample pair
+      description: Stages and validates a sample pair, returning preview IDs and spatial metadata.
+      operationId: loadDatasetSample
+      parameters:
+        - name: dataset_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: sample_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Sample pair loaded and validated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageryValidationResponse'
+        '404':
+          description: Sample or dataset not found
+
+  /api/imagery/validate:
+    post:
+      summary: Upload and validate two custom GeoTIFF / raster images
+      description: Accepts before and after rasters, extracts CRS and affine bounds, and checks spatial co-registration.
+      operationId: validateImagery
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - before_image
+                - after_image
+              properties:
+                before_image:
+                  type: string
+                  format: binary
+                after_image:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Validation and alignment results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageryValidationResponse'
+
+  /api/imagery/{image_id}/preview:
+    get:
+      summary: Retrieve generated 8-bit web PNG preview
+      description: Serves 8-bit normalized PNG preview for an image ID.
+      operationId: getImageryPreview
+      parameters:
+        - name: image_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 8-bit image preview
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+
+  /api/imagery/{image_id}/metadata:
+    get:
+      summary: Retrieve structural and geospatial metadata for an image
+      description: Returns CRS, affine matrix, pixel resolution, and WGS84 geographic bounds.
+      operationId: getImageryMetadata
+      parameters:
+        - name: image_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Image metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RasterMetadataResponse'
+
+  /api/jobs:
+    post:
+      summary: Create and execute a change detection analysis job
+      description: Executes change detection on staged imagery using classical or deep learning algorithms.
+      operationId: createJob
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JobCreateRequest'
+      responses:
+        '200':
+          description: Job completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobResponse'
+        '400':
+          description: Job execution error
+
+  /api/jobs/{job_id}:
+    get:
+      summary: Get change detection job status and telemetry
+      description: Returns execution status, processing time in ms, parameters, and generated artifact URLs.
+      operationId: getJobStatus
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Job status and telemetry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobResponse'
+        '404':
+          description: Job not found
+
+  /api/jobs/{job_id}/images/{kind}:
+    get:
+      summary: Retrieve generated mask or score heatmap for a job
+      description: Serves generated artifact PNGs (change_score, raw_mask, filtered_mask, change_overlay).
+      operationId: getJobImage
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: kind
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [change_score, raw_mask, filtered_mask, change_overlay]
+      responses:
+        '200':
+          description: Image artifact binary stream
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+
+  /api/jobs/{job_id}/results:
+    get:
+      summary: Retrieve full analysis results and evaluation metrics
+      description: Returns full analysis statistics, filtering audit details, and ground truth precision/recall/IoU metrics.
+      operationId: getJobResults
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Full analysis telemetry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobResponse'
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      required:
+        - status
+        - project
+        - stage
+        - available_methods
+        - available_datasets
+      properties:
+        status:
+          type: string
+        project:
+          type: string
+        stage:
+          type: integer
+        available_methods:
+          type: array
+          items:
+            type: string
+        available_datasets:
+          type: array
+          items:
+            type: string
+
+    JobCreateRequest:
+      type: object
+      required:
+        - before_image_id
+        - after_image_id
+      properties:
+        before_image_id:
+          type: string
+        after_image_id:
+          type: string
+        method:
+          type: string
+          default: classical
+          enum: [classical, deep_learning]
+        threshold:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+          default: 0.5
+        kernel_size:
+          type: integer
+          default: 3
+        min_component_size:
+          type: integer
+          default: 25
+        dataset_id:
+          type: string
+        sample_id:
+          type: string
+
+    JobResponse:
+      type: object
+      required:
+        - job_id
+        - status
+        - method
+        - created_at
+        - processing_time_ms
+        - outputs
+      properties:
+        job_id:
+          type: string
+        status:
+          type: string
+          enum: [queued, processing, completed, failed]
+        method:
+          type: string
+        created_at:
+          type: string
+        processing_time_ms:
+          type: number
+        error:
+          type: string
+          nullable: true
+        outputs:
+          type: object
+          additionalProperties:
+            type: string
+        stats:
+          type: object
+        filtering_details:
+          type: object
+        evaluation:
+          type: object
+          nullable: true
+
+    DatasetListResponse:
+      type: object
+      properties:
+        datasets:
+          type: array
+          items:
+            type: object
+
+    DatasetSamplesResponse:
+      type: object
+      properties:
+        dataset_id:
+          type: string
+        samples:
+          type: array
+          items:
+            type: object
+
+    ImageryValidationResponse:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        georeferenced:
+          type: boolean
+        aligned:
+          type: boolean
+        width:
+          type: integer
+        height:
+          type: integer
+        bands:
+          type: integer
+        before_image_id:
+          type: string
+        after_image_id:
+          type: string
+
+    RasterMetadataResponse:
+      type: object
+      properties:
+        filename:
+          type: string
+        width:
+          type: integer
+        height:
+          type: integer
+        count:
+          type: integer
+        dtypes:
+          type: array
+          items:
+            type: string
