@@ -1,34 +1,23 @@
-# Node
 node_modules/
-dist/
-dist-ssr/
-*.local
+.pnpm-store/
+.next/
+.next-static/
+out/
+work/
+outputs/
 .env
 .env.*
-
-# Python
+!.env.example
+*.tsbuildinfo
+*.log
+*.tar
+*.tar.gz
+.sites-runtime/
+coverage/
+test-results/
 __pycache__/
-*.py[cod]
-*$py.class
+*.pyc
 .pytest_cache/
-.coverage
-htmlcov/
-venv/
-.venv/
-env/
-ENV/
-
-# GeoSentinel Runtime Data
-runtime/
-data/temp/
-data/samples/*.tif
-data/samples/*.tiff
-data/benchmarks/*.tif
-data/benchmarks/*.tiff
-
-# IDE / OS
-.vscode/
-.idea/
+alert_dispatches.json
 .DS_Store
 Thumbs.db
-*.log
